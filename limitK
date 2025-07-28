@@ -41,7 +41,7 @@ read -p "👉 กรุณาเลือก (1 หรือ 2): " choice
 echo ""
 
 # ตั้งค่า name, limit
-name="TH32"
+name="TH17"
 limit=200
 
 if [ "$choice" == "1" ]; then
