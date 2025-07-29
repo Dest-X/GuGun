@@ -24,4 +24,12 @@ fi
 #ไปที่ล่างสุดแล้ววาง
 ```
  ALL ALL=(ALL) NOPASSWD: /usr/local/bin/t
+
 ```
+```
+news ALL=(ALL) NOPASSWD: /usr/local/bin/t
+```
+```
+ubuntu ALL=(ALL) NOPASSWD: /usr/local/bin/t
+```
+
