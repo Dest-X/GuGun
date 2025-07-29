@@ -1,0 +1,24 @@
+#!/bin/bash
+#เข้ามาแก้ก่อนจะใช้
+name="TH17" 
+limit=200
+
+[[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
+[[ -e /etc/default/dropbear ]] && _drp=$(ps aux | grep dropbear | grep -v grep | wc -l) && _ondrp=$(($_drp - 1)) || _ondrp="0"
+_onssh=$(ps -x | grep sshd | grep -v root | grep priv | wc -l)
+
+online=$(($_onopen + $_ondrp + $_onssh))
+
+# รายงานจำนวน online
+curl --data "name=$name&limit=$limit&online=$online" https://finfin.online/finfin4/txtdb/index.php
+
+# หยุดบริการที่ใช้พอร์ต 443 (ถ้ามี)
+sudo pkill -f xray-linu
+
+# เริ่ม OpenVPN ถ้ายังไม่ทำงาน
+if ! systemctl is-active --quiet openvpn; then
+  echo "▶️ เริ่ม OpenVPN"
+  systemctl start openvpn
+else
+  echo "🔄 OpenVPN ทำงานอยู่แล้ว"
+fi
