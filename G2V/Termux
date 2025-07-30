@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+#idc-9
+set timeout 10
+set host "103.230.123.164"
+set port "191"
+set user "news"
+set password "vpnk"
+set sudopass "vpnk"
+
+spawn ssh -p $port $user@$host
+expect {
+    "*yes/no*" {
+        send "yes\r"
+        exp_continue
+    }
+    "*password:*" {
+        send "$password\r"
+    }
+}
+
+expect "*$ "
+send "sudo -i\r"
+expect "*password for*"
+send "$sudopass\r"
+
+# รอ prompt root
+expect "*# "
+send "cd /bin\r"
+send "./g\r"
+
+interact
+
+
