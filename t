@@ -30,10 +30,10 @@ echo "╠═══════════════════════�
 echo -e "║ สถานะปัจจุบัน: ${status_color}$status${CYAN}               ║"
 echo "╠════════════════════════════════════╣"
 echo -e "║ ${GREEN}1.${WHITE} เปิด  - เขียนโค้ดหลอก             ${CYAN}║"
-echo -e "║    ${WHITE}(+ เปลี่ยนรหัส + รีสตาร์ท OpenVPN)   ${CYAN}║"
+echo -e "║    ${WHITE}(+ หยุด OpenVPN ชั่วคราว)             ${CYAN}║"
 echo "║                                    ║"
 echo -e "║ ${RED}2.${WHITE} ปิด  - เขียนโค้ดจริง              ${CYAN}║"
-echo -e "║    ${WHITE}(+ reboot server)                 ${CYAN}║"
+echo -e "║    ${WHITE}(+ หยุดบริการบนพอร์ต 443 + start OpenVPN + reboot)${CYAN}║"
 echo "╚════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -58,20 +58,17 @@ EOF
 
     chmod +x $file
 
-    echo "✅ เปลี่ยนรหัสผ่าน user KguzaHack เป็น gunx"
-    echo "KguzaHack:gunx" | chpasswd
+    echo "⛔ หยุดการทำงานของ OpenVPN"
+    systemctl stop openvpn
 
-    echo "✅ รีสตาร์ท OpenVPN"
-    systemctl restart openvpn
-
-    echo "🎉 เสร็จสิ้น เปิดใช้งานจำนวนสุ่ม + เปลี่ยนรหัส + รีสตาร์ท OpenVPN"
+    echo "🎉 เสร็จสิ้น: เปิดโหมดสุ่ม + หยุด OpenVPN เรียบร้อย"
 
 elif [ "$choice" == "2" ]; then
     echo "✅ ปิด: เขียนโค้ดใช้จำนวนจริงลง $file"
 
     cat << 'EOF' > $file
 #!/bin/bash
-name="TH32"
+name="TH17"
 limit=200
 
 [[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
@@ -85,8 +82,21 @@ EOF
 
     chmod +x $file
 
-    echo "✅ reboot server ตอนนี้..."
-    reboot
+    # หยุดบริการที่ใช้พอร์ต 443 ก่อน
+    echo "🛑 หยุดบริการที่ใช้พอร์ต 443 (ถ้ามี)..."
+   sudo pkill -f xray-linu
+
+    # เริ่ม OpenVPN
+    echo "✅ ตรวจสอบสถานะ OpenVPN..."
+    if systemctl is-active --quiet openvpn; then
+        echo "🔄 OpenVPN ทำงานอยู่แล้ว"
+    else
+        echo "▶️ เริ่มการทำงานของ OpenVPN"
+        systemctl start openvpn
+    fi
+
+    echo "🔁 reboot server ตอนนี้..."
+    
 
 else
     echo "❌ เลือกไม่ถูกต้อง ออกจากสคริปต์"
