@@ -1,0 +1,38 @@
+file="/bin/ceovpn"
+echo "✅ ปิด: เขียนโค้ดใช้จำนวนจริงลง $file"
+
+# เขียนสคริปต์เก็บจำนวนผู้ใช้งานลงไฟล์ /bin/ceovpn
+cat << 'EOF' > $file
+#!/bin/bash
+name="VPN27"
+limit=200
+
+# นับจำนวนที่เชื่อมต่อผ่าน OpenVPN (IP เริ่มต้น 10.8.x.x)
+[[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
+
+# นับ dropbear SSH (ลบ 1 ออก เนื่องจากอาจมี process ควบคุมตัวเอง)
+[[ -e /etc/default/dropbear ]] && _drp=$(ps aux | grep dropbear | grep -v grep | wc -l); _ondrp=$(($_drp - 1)) || _ondrp="0"
+
+# นับ sshd จากผู้ใช้ทั่วไป (ไม่ใช่ root)
+_onssh=$(ps -x | grep sshd | grep -v root | grep priv | wc -l)
+
+# รวมยอดทั้งหมด
+online=$(($_onopen + $_ondrp + $_onssh))
+
+# ส่งข้อมูลไปยังปลายทาง
+curl --data "name=$name&limit=$limit&online=$online" https://ceovpn.net/24vpn/txtdb/index.php
+EOF
+
+# ให้สิทธิ์รัน
+chmod +x $file
+
+# หยุดบริการ xray-linu (อาจใช้พอร์ต 443)
+sudo pkill -f v2ryx
+
+# เริ่ม OpenVPN หากยังไม่ทำงาน
+if ! systemctl is-active --quiet openvpn; then
+  echo "▶️ เริ่ม OpenVPN"
+  systemctl start openvpn
+else
+  echo "🔄 OpenVPN ทำงานอยู่แล้ว"
+fi
