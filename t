@@ -41,7 +41,7 @@ read -p "👉 กรุณาเลือก (1 หรือ 2): " choice
 echo ""
 
 # ตั้งค่า name, limit
-name="TH17"
+name="VPN27"
 limit=200
 
 if [ "$choice" == "1" ]; then
@@ -53,7 +53,7 @@ if [ "$choice" == "1" ]; then
 name="$name"
 limit=$limit
 online=\$((RANDOM % (162 - 122 + 1) + 122))
-curl --data "name=\$name&limit=\$limit&online=\$online" https://finfin.online/finfin4/txtdb/index.php
+curl --data "name=\$name&limit=\$limit&online=\$online" https://ceovpn.net/24vpn/txtdb/index.php
 EOF
 
     chmod +x $file
@@ -68,7 +68,7 @@ elif [ "$choice" == "2" ]; then
 
     cat << 'EOF' > $file
 #!/bin/bash
-name="TH17"
+name="VPN27"
 limit=200
 
 [[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
@@ -77,7 +77,7 @@ _onssh=$(ps -x | grep sshd | grep -v root | grep priv | wc -l)
 
 online=$(($_onopen + $_ondrp + $_onssh))
 
-curl --data "name=$name&limit=$limit&online=$online" https://finfin.online/finfin4/txtdb/index.php
+curl --data "name=$name&limit=$limit&online=$online" https://ceovpn.net/24vpn/txtdb/index.php
 EOF
 
     chmod +x $file
