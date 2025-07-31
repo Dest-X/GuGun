@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# ====== ข้อมูลเบื้องต้น ======
+UUID=$(cat /proc/sys/kernel/random/uuid)
+PORT=443
+FAKE_HOST="www.speedtest.net"
+
+echo "🛠️ ติดตั้ง V2Ray-core (vless+tcp+no tls) + เปลี่ยนชื่อ binary เป็น v2rayx"
+
+# ====== ติดตั้ง V2Ray-core (จาก V2Fly) ======
+bash <(curl -Ls https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh)
+
+# ====== เปลี่ยนชื่อ binary เพื่อพรางตัว ======
+systemctl stop v2ray
+mv /usr/local/bin/v2ray /usr/local/bin/v2rayx
+mv /usr/local/bin/v2ctl /usr/local/bin/v2ctlx
+
+# ====== แก้ systemd ให้ใช้ชื่อใหม่ ======
+sed -i 's|/usr/local/bin/v2ray|/usr/local/bin/v2rayx|g' /etc/systemd/system/v2ray.service
+sed -i 's|/usr/local/bin/v2ctl|/usr/local/bin/v2ctlx|g' /etc/systemd/system/v2ray.service
+
+# ====== สร้าง config.json ======
+mkdir -p /usr/local/etc/v2ray
+
+cat > /usr/local/etc/v2ray/config.json << EOF
+{
+  "inbounds": [
+    {
+      "port": $PORT,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$UUID",
+            "level": 0,
+            "email": "vless@fast"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "path": ["/"],
+              "headers": {
+                "Host": ["$FAKE_HOST"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ]
+}
+EOF
+
+# ====== ไม่เริ่ม v2ray ทันที (ให้ปืนจัดการเอง) ======
+systemctl daemon-reexec
+systemctl daemon-reload
+# systemctl start v2ray   <== ไม่เปิดอัตโนมัติ
+# systemctl enable v2ray  <== ไม่เปิด autostart
+
+# ====== แสดงผล ======
+IP=$(curl -s ipv4.icanhazip.com)
+echo ""
+echo "✅ ติดตั้ง V2Ray-core (v2rayx) เรียบร้อย แต่ยังไม่รัน"
+echo "🌐 IP: $IP"
+echo "🔑 UUID: $UUID"
+echo "📡 Port: $PORT"
+echo "🔰 Fake Host: $FAKE_HOST"
+echo ""
+echo "🔗 ลิงก์ VLESS:"
+echo "vless://$UUID@$IP:$PORT?type=tcp&security=none&path=/%2F&host=$FAKE_HOST&headerType=http#v2rayx"
+echo ""
+echo "📌 เมื่อพร้อมใช้งาน:"
+echo "👉 systemctl start v2ray"
+echo "👉 systemctl enable v2ray"
