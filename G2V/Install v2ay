@@ -1,79 +1,92 @@
 #!/bin/bash
 
-# ====== ข้อมูลเบื้องต้น ======
-UUID=$(cat /proc/sys/kernel/random/uuid)
+# ====== ค่าพื้นฐาน ======
+UUID=$(uuidgen)
 PORT=443
 FAKE_HOST="www.speedtest.net"
+CONFIG_PATH="/usr/local/etc/v2ray"
+BIN_NAME="v2rayx"
 
-echo "🛠️ ติดตั้ง V2Ray-core (vless+tcp+no tls) + เปลี่ยนชื่อ binary เป็น v2rayx"
+echo "🔧 กำลังติดตั้ง V2Ray-core แบบ vless+tcp+no tls (ping ต่ำ)"
 
-# ====== ติดตั้ง V2Ray-core (จาก V2Fly) ======
-bash <(curl -Ls https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh)
+# ====== ติดตั้ง v2ray-core ======
+apt update -y
+apt install curl unzip -y
 
-# ====== เปลี่ยนชื่อ binary เพื่อพรางตัว ======
-systemctl stop v2ray
-mv /usr/local/bin/v2ray /usr/local/bin/v2rayx
-mv /usr/local/bin/v2ctl /usr/local/bin/v2ctlx
+echo "📥 ดาวน์โหลด v2ray-core..."
+LATEST_URL="https://github.com/v2fly/v2ray-core/releases/latest/download/v2ray-linux-64.zip"
+curl -L -o /tmp/v2ray.zip "$LATEST_URL"
+curl -L -o /tmp/v2ray.zip.dgst "${LATEST_URL}.dgst"
 
-# ====== แก้ systemd ให้ใช้ชื่อใหม่ ======
-sed -i 's|/usr/local/bin/v2ray|/usr/local/bin/v2rayx|g' /etc/systemd/system/v2ray.service
-sed -i 's|/usr/local/bin/v2ctl|/usr/local/bin/v2ctlx|g' /etc/systemd/system/v2ray.service
+unzip /tmp/v2ray.zip -d /tmp/v2ray
+
+# ย้ายไฟล์ไปตำแหน่งติดตั้ง
+install -m 755 /tmp/v2ray/v2ray /usr/local/bin/$BIN_NAME
+install -d /usr/local/share/v2ray
+install -m 644 /tmp/v2ray/geo* /usr/local/share/v2ray/
 
 # ====== สร้าง config.json ======
-mkdir -p /usr/local/etc/v2ray
-
-cat > /usr/local/etc/v2ray/config.json << EOF
+mkdir -p $CONFIG_PATH
+cat > $CONFIG_PATH/config.json <<EOF
 {
-  "inbounds": [
-    {
-      "port": $PORT,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "$UUID",
-            "level": 0,
-            "email": "vless@fast"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "none",
-        "tcpSettings": {
-          "header": {
-            "type": "http",
-            "request": {
-              "path": ["/"],
-              "headers": {
-                "Host": ["$FAKE_HOST"]
-              }
+  "inbounds": [{
+    "port": $PORT,
+    "protocol": "vless",
+    "settings": {
+      "clients": [{
+        "id": "$UUID",
+        "level": 0,
+        "email": "user@example.com"
+      }],
+      "decryption": "none"
+    },
+    "streamSettings": {
+      "network": "tcp",
+      "security": "none",
+      "tcpSettings": {
+        "header": {
+          "type": "http",
+          "request": {
+            "headers": {
+              "Host": ["$FAKE_HOST"]
             }
           }
         }
       }
     }
-  ],
-  "outbounds": [
-    {
-      "protocol": "freedom",
-      "settings": {}
-    }
-  ]
+  }],
+  "outbounds": [{
+    "protocol": "freedom"
+  }]
 }
 EOF
 
-# ====== ไม่เริ่ม v2ray ทันที (ให้ปืนจัดการเอง) ======
-systemctl daemon-reexec
-systemctl daemon-reload
-# systemctl start v2ray   <== ไม่เปิดอัตโนมัติ
-# systemctl enable v2ray  <== ไม่เปิด autostart
+# ====== สร้าง systemd service ======
+cat > /etc/systemd/system/v2ray.service <<EOF
+[Unit]
+Description=V2RayX Service
+After=network.target
 
-# ====== แสดงผล ======
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/$BIN_NAME run -config $CONFIG_PATH/config.json
+Restart=on-failure
+User=nobody
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# ====== ทำความสะอาด ======
+rm -rf /tmp/v2ray*
+
+# ====== สรุป ======
 IP=$(curl -s ipv4.icanhazip.com)
 echo ""
-echo "✅ ติดตั้ง V2Ray-core (v2rayx) เรียบร้อย แต่ยังไม่รัน"
+echo "✅ ติดตั้ง V2Ray-core (v2rayx) เรียบร้อย แต่ยังไม่เริ่มรัน"
 echo "🌐 IP: $IP"
 echo "🔑 UUID: $UUID"
 echo "📡 Port: $PORT"
