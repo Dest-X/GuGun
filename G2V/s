@@ -1,10 +1,10 @@
-file="/bin/ceovpn"
+file="/bin/idcvpn"
 echo "✅ ปิด: เขียนโค้ดใช้จำนวนจริงลง $file"
 
 # เขียนสคริปต์เก็บจำนวนผู้ใช้งานลงไฟล์ /bin/ceovpn
 cat << 'EOF' > $file
 #!/bin/bash
-name="VPN27"
+name="TH09"
 limit=200
 
 # นับจำนวนที่เชื่อมต่อผ่าน OpenVPN (IP เริ่มต้น 10.8.x.x)
