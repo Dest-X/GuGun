@@ -7,6 +7,8 @@ cat << 'EOF' > $file
 name="TH09"
 limit=200
 url="https://ceovpn.net/24vpn/txtdb/index.php"
+
+
 # นับจำนวนที่เชื่อมต่อผ่าน OpenVPN (IP เริ่มต้น 10.8.x.x)
 [[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
 
