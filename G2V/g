@@ -11,7 +11,7 @@ NC='\033[0m' # reset สี
 clear
 
 # path ของไฟล์
-file="/bin/finfin"
+file="/bin/idcvpn"
 
 # ตรวจสอบสถานะปัจจุบัน
 if grep -q "RANDOM" $file; then
