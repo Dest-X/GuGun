@@ -1,68 +1,75 @@
 #!/bin/bash
 
-# ====== ค่าพื้นฐาน ======
-UUID=$(uuidgen)
-PORT=443
-FAKE_HOST="www.speedtest.net"
-CONFIG_PATH="/usr/local/etc/v2ray"
+# กำหนดชื่อ
 BIN_NAME="v2rayx"
+SERVICE_NAME="v2rayx"
+CONFIG_PATH="/etc/v2rayx"
+UUID=$(cat /proc/sys/kernel/random/uuid)
+FAKE_HOST="www.speedtest.net"
 
-echo "🔧 กำลังติดตั้ง V2Ray-core แบบ vless+tcp+no tls (ping ต่ำ)"
+# ติดตั้ง curl, unzip ถ้ายังไม่มี
+apt update -y && apt install curl unzip -y
 
-# ====== ติดตั้ง v2ray-core ======
-apt update -y
-apt install curl unzip -y
+# ดาวน์โหลด V2Ray core ล่าสุด
+mkdir -p /tmp/v2tmp && cd /tmp/v2tmp
+curl -Ls https://github.com/v2fly/v2ray-core/releases/latest/download/v2ray-linux-64.zip -o v2ray.zip
+unzip v2ray.zip
 
-echo "📥 ดาวน์โหลด v2ray-core..."
-LATEST_URL="https://github.com/v2fly/v2ray-core/releases/latest/download/v2ray-linux-64.zip"
-curl -L -o /tmp/v2ray.zip "$LATEST_URL"
-curl -L -o /tmp/v2ray.zip.dgst "${LATEST_URL}.dgst"
+# ติดตั้ง binary เป็นชื่อใหม่
+install -m 755 v2ray /usr/local/bin/$BIN_NAME
+install -m 755 v2ctl /usr/local/bin/v2ctl
 
-unzip /tmp/v2ray.zip -d /tmp/v2ray
-
-# ย้ายไฟล์ไปตำแหน่งติดตั้ง
-install -m 755 /tmp/v2ray/v2ray /usr/local/bin/$BIN_NAME
-install -d /usr/local/share/v2ray
-install -m 644 /tmp/v2ray/geo* /usr/local/share/v2ray/
-
-# ====== สร้าง config.json ======
+# สร้างโฟลเดอร์ config
 mkdir -p $CONFIG_PATH
+
+# สร้าง config VLESS + TCP + FakeHost
 cat > $CONFIG_PATH/config.json <<EOF
 {
-  "inbounds": [{
-    "port": $PORT,
-    "protocol": "vless",
-    "settings": {
-      "clients": [{
-        "id": "$UUID",
-        "level": 0,
-        "email": "user@example.com"
-      }],
-      "decryption": "none"
-    },
-    "streamSettings": {
-      "network": "tcp",
-      "security": "none",
-      "tcpSettings": {
-        "header": {
-          "type": "http",
-          "request": {
-            "headers": {
-              "Host": ["$FAKE_HOST"]
+  "log": {
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$UUID",
+            "level": 0,
+            "email": "v2rayx"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "headers": {
+                "Host": [
+                  "$FAKE_HOST"
+                ]
+              }
             }
           }
         }
       }
     }
-  }],
-  "outbounds": [{
-    "protocol": "freedom"
-  }]
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom"
+    }
+  ]
 }
 EOF
 
-# ====== สร้าง systemd service ======
-cat > /etc/systemd/system/v2ray.service <<EOF
+# สร้าง service แบบใหม่ชื่อ v2rayx
+cat > /etc/systemd/system/$SERVICE_NAME.service <<EOF
 [Unit]
 Description=V2RayX Service
 After=network.target
@@ -80,21 +87,24 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
-# ====== ทำความสะอาด ======
-rm -rf /tmp/v2ray*
+# reload systemd
+systemctl daemon-reexec
+systemctl daemon-reload
 
-# ====== สรุป ======
-IP=$(curl -s ipv4.icanhazip.com)
-echo ""
-echo "✅ ติดตั้ง V2Ray-core (v2rayx) เรียบร้อย แต่ยังไม่เริ่มรัน"
-echo "🌐 IP: $IP"
-echo "🔑 UUID: $UUID"
-echo "📡 Port: $PORT"
-echo "🔰 Fake Host: $FAKE_HOST"
-echo ""
-echo "🔗 ลิงก์ VLESS:"
-echo "vless://$UUID@$IP:$PORT?type=tcp&security=none&path=/%2F&host=$FAKE_HOST&headerType=http#v2rayx"
-echo ""
-echo "📌 เมื่อพร้อมใช้งาน:"
-echo "👉 systemctl start v2ray"
-echo "👉 systemctl enable v2ray"
+# แสดง UUID และคำสั่งใช้งาน
+clear
+echo "✅ ติดตั้ง V2RayX สำเร็จแล้ว!"
+echo "----------------------------"
+echo "🆔 UUID: $UUID"
+echo "🌐 Host: $FAKE_HOST"
+echo "📦 พอร์ต: 443 (TCP + HTTP FakeHost)"
+echo
+echo "📌 คำสั่งใช้งาน:"
+echo "เริ่มรัน:      systemctl start $SERVICE_NAME"
+echo "หยุด:          systemctl stop $SERVICE_NAME"
+echo "สถานะ:         systemctl status $SERVICE_NAME"
+echo "เปิด auto:     systemctl enable $SERVICE_NAME"
+echo "ปิด auto:      systemctl disable $SERVICE_NAME"
+echo
+echo "📎 ลิงก์เชื่อมต่อ (VLESS URI):"
+echo "vless://$UUID@$(curl -s ifconfig.me):443?type=tcp&security=none&headerType=http&host=$FAKE_HOST#v2rayx"
