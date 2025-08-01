@@ -15,14 +15,12 @@ clear
 #เบ้ามาแก้ในนี้ให้เสร็จก่อนใช้
 #
 # path ของไฟล์
-file="/bin/idcvpn"
-namex="TH09"
-limitx="200"
-urlx="https://ceovpn.net/24vpn/txtdb/index.php"
+file="/bin/finfin"
+namex="HOME06"
+limitx="350"
+urlx="https://finfin.online/finfin4/txtdb/index.php"
 #
 #
-
-
 
 # ตรวจสอบสถานะปัจจุบัน
 if grep -q "RANDOM" $file; then
