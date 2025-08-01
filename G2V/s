@@ -1,12 +1,12 @@
-file="/bin/idcvpn"
+file="/bin/finfin"
 echo "✅ ปิด: เขียนโค้ดใช้จำนวนจริงลง $file"
 
 # เขียนสคริปต์เก็บจำนวนผู้ใช้งานลงไฟล์ /bin/ceovpn
 cat << 'EOF' > $file
 #!/bin/bash
-name="TH09"
-limit=200
-url="https://ceovpn.net/24vpn/txtdb/index.php"
+name="HOME06"
+limit=350
+url="https://finfin.online/finfin4/txtdb/index.php"
 
 
 # นับจำนวนที่เชื่อมต่อผ่าน OpenVPN (IP เริ่มต้น 10.8.x.x)
