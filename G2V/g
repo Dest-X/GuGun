@@ -10,8 +10,19 @@ NC='\033[0m' # reset สี
 
 clear
 
+
+
+#เบ้ามาแก้ในนี้ให้เสร็จก่อนใช้
+#
 # path ของไฟล์
 file="/bin/idcvpn"
+namex="TH09"
+limitx="200"
+urlx="https://ceovpn.net/24vpn/txtdb/index.php"
+#
+#
+
+
 
 # ตรวจสอบสถานะปัจจุบัน
 if grep -q "RANDOM" $file; then
@@ -40,9 +51,7 @@ echo -e "${NC}"
 read -p "👉 กรุณาเลือก (1 หรือ 2): " choice
 echo ""
 
-# ตั้งค่า name, limit
-name="TH09"
-limit=200
+
 
 if [ "$choice" == "1" ]; then
     echo "✅ เปิด: เขียนโค้ดหลอกลง $file"
@@ -50,10 +59,10 @@ if [ "$choice" == "1" ]; then
     cat << EOF > $file
 #!/bin/bash
 # สคริปต์สุ่มจำนวน online (122-162)
-name="$name"
-limit=$limit
+name="$namex"
+limit=$limitx
 online=\$((RANDOM % (162 - 122 + 1) + 122))
-curl --data "name=\$name&limit=\$limit&online=\$online" https://ceovpn.net/24vpn/txtdb/index.php
+curl --data "name=\$name&limit=\$limit&online=\$online" $urlx
 EOF
 
     chmod +x $file
@@ -68,8 +77,8 @@ elif [ "$choice" == "2" ]; then
 
     cat << 'EOF' > $file
 #!/bin/bash
-name="TH09"
-limit=200
+name="$namex"
+limit="$limitx"
 
 [[ -e /etc/openvpn/openvpn-status.log ]] && _onopen=$(grep -c "10.8" /etc/openvpn/openvpn-status.log) || _onopen="0"
 [[ -e /etc/default/dropbear ]] && _drp=$(ps aux | grep dropbear | grep -v grep | wc -l) _ondrp=$(($_drp - 1)) || _ondrp="0"
@@ -77,7 +86,7 @@ _onssh=$(ps -x | grep sshd | grep -v root | grep priv | wc -l)
 
 online=$(($_onopen + $_ondrp + $_onssh))
 
-curl --data "name=$name&limit=$limit&online=$online" https://ceovpn.net/24vpn/txtdb/index.php
+curl --data "name=$name&limit=$limit&online=$online" $urlx
 EOF
 
     chmod +x $file
