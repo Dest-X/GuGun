@@ -1,0 +1,140 @@
+#!/bin/bash
+
+# ---------- CONFIG ----------
+UUID="$(cat /proc/sys/kernel/random/uuid)"
+PORT=443
+FAKE_HOST="www.speedtest.net"
+SERVICE_NAME="v2rayx"
+INSTALL_DIR="/usr/local/etc/v2ray"
+BIN_FILE="/usr/local/bin/v2rayx"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+# ---------- INSTALL FUNCTION ----------
+install_v2rayx() {
+  echo "\n>> กำลังติดตั้ง V2RayX..."
+
+  mkdir -p "$INSTALL_DIR"
+  cat > "$INSTALL_DIR/config.json" <<EOF
+{
+  "inbounds": [
+    {
+      "port": $PORT,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$UUID",
+            "level": 0,
+            "email": "user@v2rayx"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "headers": {
+                "Host": ["$FAKE_HOST"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom"
+    }
+  ]
+}
+EOF
+
+  curl -Ls -o "$BIN_FILE" https://github.com/v2fly/v2ray-core/releases/latest/download/v2ray-linux-64.zip && unzip -o "$BIN_FILE" -d /usr/local/bin/ && chmod +x "$BIN_FILE"
+
+  cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=V2RayX Service
+After=network.target
+
+[Service]
+ExecStart=$BIN_FILE -config $INSTALL_DIR/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  chmod +x "$BIN_FILE"
+  systemctl daemon-reexec
+  systemctl daemon-reload
+  echo "✅ ติดตั้งเรียบร้อยแล้ว UUID: $UUID"
+  echo "🔗 ลิงก์: vless://$UUID@$(curl -s ipv4.icanhazip.com):$PORT?type=tcp&security=none&host=$FAKE_HOST&headerType=http"
+}
+
+# ---------- MENU ----------
+while true; do
+  clear
+  echo "=============================="
+  echo "         เมนูหลัก             "
+  echo "=============================="
+  echo "1) ติดตั้ง V2RayX"
+  echo "2) แสดง UUID"
+  echo "v) จัดการ V2RayX"
+  echo "0) ออก"
+  echo "=============================="
+  read -p "เลือกเมนู: " choice
+
+  case "$choice" in
+    1)
+      install_v2rayx
+      read -p "กด Enter เพื่อกลับเมนู...";;
+    2)
+      echo "UUID: $UUID"
+      read -p "กด Enter เพื่อกลับเมนู...";;
+    v)
+      while true; do
+        clear
+        echo "====== จัดการ V2RayX ======"
+        echo "1) เริ่ม v2rayx"
+        echo "2) หยุด v2rayx"
+        echo "3) รีสตาร์ท v2rayx"
+        echo "4) สถานะ v2rayx"
+        echo "5) ลบ v2rayx"
+        echo "0) กลับเมนูหลัก"
+        echo "=========================="
+        read -p "เลือก: " vopt
+
+        case "$vopt" in
+          1) systemctl start v2rayx && echo "✅ เริ่ม v2rayx แล้ว"; sleep 2;;
+          2) systemctl stop v2rayx && echo "🛑 หยุด v2rayx แล้ว"; sleep 2;;
+          3) systemctl restart v2rayx && echo "🔁 รีสตาร์ท v2rayx แล้ว"; sleep 2;;
+          4) systemctl status v2rayx --no-pager; read -p "กด Enter เพื่อกลับ...";;
+          5)
+            read -p "⚠ ยืนยันการลบ V2RayX (y/n)? " confirm
+            if [[ "$confirm" == "y" ]]; then
+              systemctl stop v2rayx
+              systemctl disable v2rayx
+              rm -f "$BIN_FILE"
+              rm -rf "$INSTALL_DIR"
+              rm -f "$SERVICE_FILE"
+              systemctl daemon-reload
+              echo "✅ ลบ V2RayX แล้ว"
+              sleep 2
+            fi;;
+          0) break;;
+          *) echo "❌ ตัวเลือกไม่ถูกต้อง"; sleep 1;;
+        esac
+      done;;
+    0)
+      echo "👋 ออกจากระบบแล้ว"
+      exit;;
+    *)
+      echo "❌ ตัวเลือกไม่ถูกต้อง"
+      sleep 1;;
+  esac
+done
