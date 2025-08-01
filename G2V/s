@@ -27,7 +27,7 @@ EOF
 chmod +x $file
 
 # หยุดบริการ xray-linu (อาจใช้พอร์ต 443)
-sudo pkill -f v2ryx
+sudo pkill -f v2rayx
 
 # เริ่ม OpenVPN หากยังไม่ทำงาน
 if ! systemctl is-active --quiet openvpn; then
