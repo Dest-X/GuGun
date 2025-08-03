@@ -1,0 +1,124 @@
+#!/bin/bash
+
+CONFIG_PATH="/etc/v2rayx"
+CLIENT_DB="$CONFIG_PATH/clients.db"
+FAKE_HOST_FILE="$CONFIG_PATH/fakehost.txt"
+CONFIG_FILE="$CONFIG_PATH/config.json"
+SERVICE_NAME="v2rayx"
+LOG_FILE="/var/log/v2ray/access.log"
+
+# === 🧹 ล้าง UUID ที่หมดอายุ ===
+clean_expired() {
+  if [[ -f "$CLIENT_DB" ]]; then
+    NOW=$(date +%s)
+    TMP=$(mktemp)
+    cat "$CLIENT_DB" | while IFS='|' read -r name uuid exp; do
+      if [[ -z "$name" || -z "$uuid" || -z "$exp" ]]; then continue; fi
+      exp_ts=$(date -d "$exp" +%s 2>/dev/null)
+      if [[ $NOW -lt $exp_ts ]]; then
+        echo "$name|$uuid|$exp" >> "$TMP"
+      else
+        echo "🗑️ ลบผู้ใช้หมดอายุ: $name ($uuid)"
+        jq 'del(.inbounds[].settings.clients[] | select(.id=="'$uuid'"))' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      fi
+    done
+    mv "$TMP" "$CLIENT_DB"
+    systemctl restart "$SERVICE_NAME"
+  fi
+}
+
+# === ➕ เพิ่มผู้ใช้ ===
+add_user() {
+  read -p "👤 ชื่อผู้ใช้: " name
+  read -p "📅 วันหมดอายุ (YYYY-MM-DD): " exp
+  uuid=$(cat /proc/sys/kernel/random/uuid)
+  echo "$name|$uuid|$exp" >> "$CLIENT_DB"
+  jq '.inbounds[0].settings.clients += [{"id":"'$uuid'","level":0,"email":"'$name'"}]' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  systemctl restart "$SERVICE_NAME"
+  echo "✅ เพิ่ม $name ($uuid) สำเร็จ"
+}
+
+# === 🔧 แก้ FAKE HOST ===
+edit_fakehost() {
+  read -p "🌐 ป้อน FAKE HOST ใหม่: " host
+  echo "$host" > "$FAKE_HOST_FILE"
+  jq '(.inbounds[].streamSettings.tcpSettings.header.request.headers.Host[0]) = "'$host'"' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  systemctl restart "$SERVICE_NAME"
+  echo "✅ เปลี่ยน FAKE HOST เป็น $host"
+}
+
+# === 🔧 แก้พอร์ตตามโปรโตคอล ===
+edit_port() {
+  mapfile -t protocols < <(jq -r '.inbounds[] | "" + .tag + " " + (.port|tostring)' "$CONFIG_FILE")
+  echo "📡 โปรโตคอลที่พบ:"
+  for i in "${!protocols[@]}"; do
+    tag_port=(${protocols[$i]})
+    echo "$((i+1)). ${tag_port[0]} (port ${tag_port[1]})"
+  done
+  read -p "เลือกหมายเลขโปรโตคอล: " sel
+  idx=$((sel-1))
+  tag=${protocols[$idx]%% *}
+  read -p "🔁 พอร์ตใหม่สำหรับ $tag: " new_port
+  jq '(.inbounds[] | select(.tag=="'$tag'") | .port) = '$new_port'' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  systemctl restart "$SERVICE_NAME"
+  echo "✅ เปลี่ยนพอร์ต $tag เป็น $new_port"
+}
+
+# === 📊 แสดงการใช้งาน ===
+show_usage() {
+  printf "\n%-15s %-36s %-10s %-10s\n" "ชื่อ" "UUID" "ดาวน์โหลด(MB)" "อัปโหลด(MB)"
+  printf -- "%.0s-" {1..80}; echo
+  for line in $(cat "$CLIENT_DB"); do
+    name=$(echo $line | cut -d '|' -f1)
+    uuid=$(echo $line | cut -d '|' -f2)
+    rx=$(grep "$uuid" "$LOG_FILE" | grep accepted | awk '{s+=$11} END {print s/1024/1024}')
+    tx=$(grep "$uuid" "$LOG_FILE" | grep accepted | awk '{s+=$13} END {print s/1024/1024}')
+    rx=${rx:-0}; tx=${tx:-0}
+    printf "%-15s %-36s %-10.2f %-10.2f\n" "$name" "$uuid" "$rx" "$tx"
+  done
+}
+
+# === 🔗 แสดงลิงก์ vless ===
+show_links() {
+  IP=$(curl -s ifconfig.me)
+  fake=$(cat "$FAKE_HOST_FILE")
+  port=$(jq -r '.inbounds[0].port' "$CONFIG_FILE")
+  for line in $(cat "$CLIENT_DB"); do
+    name=$(echo $line | cut -d '|' -f1)
+    uuid=$(echo $line | cut -d '|' -f2)
+    echo "🔗 $name: vless://$uuid@$IP:$port?type=tcp&security=none&headerType=http&host=$fake#$name"
+  done
+}
+
+# === 🧰 เมนูหลัก ===
+while true; do
+  clean_expired
+  echo "\n======================"
+  echo "📦 V2RayX Pro Menu"
+  echo "======================"
+  echo "1. ➕ เพิ่มผู้ใช้"
+  echo "2. 🔧 แก้ FAKE HOST"
+  echo "3. 🔁 แก้พอร์ตตามโปรโตคอล"
+  echo "4. 📊 ดูปริมาณการใช้งาน"
+  echo "5. 🔗 แสดงลิงก์ VLESS"
+  echo "6. ▶️ เริ่มบริการ V2RayX"
+  echo "7. ⏹️ หยุดบริการ V2RayX"
+  echo "8. 🔁 รีโหลด V2RayX"
+  echo "9. 🚪 ออกจากเมนู"
+  echo "======================"
+  read -p "เลือกคำสั่ง [1-9]: " cmd
+  case $cmd in
+    1) add_user;;
+    2) edit_fakehost;;
+    3) edit_port;;
+    4) show_usage;;
+    5) show_links;;
+    6) systemctl start $SERVICE_NAME;;
+    7) systemctl stop $SERVICE_NAME;;
+    8) systemctl restart $SERVICE_NAME;;
+    9) break;;
+    *) echo "❌ คำสั่งไม่ถูกต้อง";;
+  esac
+  echo "\nกด Enter เพื่อกลับเมนู..."
+  read
+done
