@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# ===============================
+# ✅ V2RayX PRO Installer + Menu Support
+# ===============================
+
+CONFIG_PATH="/etc/v2rayx"
+MENU_PATH="/bin/v"
+UUID=$(cat /proc/sys/kernel/random/uuid)
+PORT=443
+FAKE_HOST="www.speedtest.net"
+
+# ========== Install Required Packages ==========
+apt update -y && apt install curl jq -y
+
+# ========== Install V2Ray Core (Xray-core) ==========
+curl -Ls https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
+unzip -qo xray.zip -d /usr/local/bin/
+chmod +x /usr/local/bin/xray
+
+# ========== Create Config Directory ==========
+mkdir -p $CONFIG_PATH
+
+# ========== Generate config.json ==========
+cat << EOF > $CONFIG_PATH/config.json
+{
+  "log": {
+    "access": "$CONFIG_PATH/traffic.log",
+    "error": "$CONFIG_PATH/error.log",
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": $PORT,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "$UUID",
+            "level": 0,
+            "email": "v2rayx"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "none",
+        "tcpSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "headers": {
+                "Host": [
+                  "$FAKE_HOST"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom"
+    }
+  ]
+}
+EOF
+
+# ========== Setup Support Files ==========
+echo "[{\"id\": \"$UUID\", \"exp\": \"ไม่มีวันหมดอายุ\"}]" > $CONFIG_PATH/uuid.json
+echo "$FAKE_HOST" > $CONFIG_PATH/fakehost.txt
+echo "[{\"port\": $PORT, \"protocol\": \"vless\"}]" > $CONFIG_PATH/port.json
+touch $CONFIG_PATH/traffic.log
+
+# ========== Create Service ==========
+cat << EOF > /etc/systemd/system/v2rayx.service
+[Unit]
+Description=V2RayX PRO Service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/xray -config $CONFIG_PATH/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl enable v2rayx
+systemctl restart v2rayx
+
+# ========== Install Menu to /bin/v ==========
+curl -o $MENU_PATH https://raw.githubusercontent.com/gunseeddev/v2rayx-menu/main/v
+chmod +x $MENU_PATH
+
+clear
+IP=$(curl -s ipv4.icanhazip.com)
+echo -e "\e[32m✅ ติดตั้ง V2RayX Pro สำเร็จ\e[0m"
+echo -e "🆔 UUID: \e[36m$UUID\e[0m"
+echo -e "🌐 IP: \e[36m$IP\e[0m"
+echo -e "🔐 พอร์ต: \e[36m$PORT\e[0m"
+echo -e "🎯 Fake Host: \e[36m$FAKE_HOST\e[0m"
+echo -e "📁 เมนูใช้งาน: \e[33mv\e[0m (พิมพ์ v จากที่ไหนก็ได้)"
+
