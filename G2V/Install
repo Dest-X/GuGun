@@ -95,7 +95,7 @@ systemctl enable v2rayx
 systemctl restart v2rayx
 
 # ========== Install Menu to /bin/v ==========
-curl -o $MENU_PATH https://raw.githubusercontent.com/gunseeddev/v2rayx-menu/main/v
+curl -o $MENU_PATH https://raw.githubusercontent.com/Dest-X/GuGun/refs/heads/main/G2V/v?token=GHSAT0AAAAAADIRDV7WZRLBITNNIEP72M5W2EPYCRA
 chmod +x $MENU_PATH
 
 clear
